@@ -1,0 +1,661 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>スタンプカード | WHITE WAX KANAYAMA</title>
+  <script src="https://static.line-scdn.net/liff/edge/versions/2.22.3/sdk.js"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@300;400;500;700&family=Cormorant+Garamond:ital,wght@0,400;0,600;1,400&display=swap" rel="stylesheet">
+  <style>
+    *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+    :root{
+      --gold:#C9A96E;--gold-dark:#A8854A;--white:#FFFFFF;
+      --text:#2A2218;--text-sub:#9A8E7E;--bg:#FDFBF7;
+    }
+    body{font-family:'Noto Sans JP','Hiragino Sans',sans-serif;background:var(--bg);color:var(--text);max-width:430px;margin:0 auto;padding:0 0 80px;overflow-x:hidden;}
+
+    /* loading */
+    #loading{position:fixed;inset:0;background:var(--bg);display:flex;flex-direction:column;align-items:center;justify-content:center;z-index:999;}
+    #loading .l-logo{font-family:'Cormorant Garamond',serif;font-size:14px;letter-spacing:.35em;color:var(--gold);margin-bottom:20px;}
+    .spinner{width:32px;height:32px;border:2px solid rgba(201,169,110,.2);border-top-color:var(--gold);border-radius:50%;animation:spin .8s linear infinite;}
+    @keyframes spin{to{transform:rotate(360deg)}}
+
+    /* pages */
+    .page{display:none;padding:36px 20px 20px;}
+    .page.active{display:block;}
+
+    .logo{font-family:'Cormorant Garamond',serif;font-size:14px;font-weight:600;letter-spacing:.35em;color:var(--gold);text-align:center;margin-bottom:28px;}
+
+    /* user info */
+    .user-bar{display:flex;align-items:center;gap:12px;margin-bottom:24px;}
+    .user-avatar{width:44px;height:44px;border-radius:50%;object-fit:cover;border:2px solid rgba(201,169,110,.3);}
+    .user-avatar-placeholder{width:44px;height:44px;border-radius:50%;background:rgba(201,169,110,.15);display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0;}
+    .user-name{font-size:14px;font-weight:500;color:var(--text);}
+    .user-sub{font-size:11px;color:var(--text-sub);margin-top:2px;}
+
+    /* card */
+    .card{background:var(--white);border:1px solid rgba(201,169,110,.2);border-radius:20px;padding:24px 20px;box-shadow:0 2px 20px rgba(42,34,24,.06);margin-bottom:14px;position:relative;overflow:hidden;transition:border-color .6s,box-shadow .6s;}
+    .card.premium-card{border-color:rgba(201,169,110,.6);box-shadow:0 0 0 1px rgba(201,169,110,.25),0 4px 32px rgba(201,169,110,.2);}
+    .card-shimmer{position:absolute;inset:0;border-radius:20px;pointer-events:none;opacity:0;background:linear-gradient(135deg,rgba(255,220,100,.08),rgba(255,255,255,0) 50%,rgba(255,220,100,.08));transition:opacity .8s;}
+    .card.premium-card .card-shimmer{opacity:1;}
+
+    /* ornaments */
+    .ornament{position:absolute;font-family:'Cormorant Garamond',serif;font-size:16px;color:rgba(201,169,110,0);transition:color .8s;pointer-events:none;}
+    .ornament.show{color:rgba(201,169,110,.6);}
+    .orn-tl{top:12px;left:16px;}.orn-tr{top:12px;right:16px;}.orn-bl{bottom:12px;left:16px;}.orn-br{bottom:12px;right:16px;}
+
+    /* rank */
+    .rank-badge{display:inline-flex;align-items:center;gap:6px;padding:5px 14px;border-radius:20px;font-size:11px;font-weight:700;letter-spacing:.1em;margin-bottom:12px;}
+    .rank-normal{background:rgba(201,169,110,.1);color:var(--gold-dark);}
+    .rank-gold{background:linear-gradient(135deg,#C9A96E,#F0D080);color:#3A2A10;}
+
+    /* visit count */
+    .vc-label{font-size:10px;font-weight:700;letter-spacing:.18em;color:var(--gold-dark);text-align:center;margin-bottom:4px;}
+    .vc-num{font-family:'Cormorant Garamond',serif;font-size:42px;font-weight:400;color:var(--text);text-align:center;line-height:1;}
+    .vc-num span{font-size:16px;color:var(--text-sub);margin-left:2px;}
+    .vc-next{font-size:11px;font-weight:300;color:var(--text-sub);text-align:center;margin-top:4px;margin-bottom:20px;}
+
+    /* face */
+    .face-wrap{display:flex;justify-content:center;margin-bottom:18px;position:relative;}
+    .face-wrap svg{width:210px;height:260px;overflow:visible;}
+    .face-halo{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:228px;height:278px;border-radius:50%;border:2px solid rgba(201,169,110,0);box-shadow:0 0 0 rgba(201,169,110,0);pointer-events:none;transition:border-color 1s,box-shadow 1s;}
+    .face-halo.show{border-color:rgba(201,169,110,.45);box-shadow:0 0 24px rgba(201,169,110,.25),0 0 48px rgba(201,169,110,.12);}
+    .wax{transition:opacity .45s cubic-bezier(.4,0,.2,1),transform .45s cubic-bezier(.4,0,.2,1);}
+    .wax.off{opacity:0;transform:scale(.4);pointer-events:none;}
+
+    /* premium banner */
+    .premium-banner{overflow:hidden;max-height:0;opacity:0;transition:max-height .8s cubic-bezier(.4,0,.2,1),opacity .6s,margin .6s;margin-bottom:0;}
+    .premium-banner.show{max-height:120px;opacity:1;margin-bottom:16px;}
+    .premium-inner{background:linear-gradient(135deg,#3A2A10,#6B4A1A 40%,#3A2A10);border-radius:14px;padding:16px;text-align:center;position:relative;overflow:hidden;}
+    .premium-inner::before{content:'';position:absolute;inset:0;background:linear-gradient(90deg,transparent,rgba(255,220,100,.12),transparent);animation:shimmerSlide 3s ease-in-out infinite;}
+    @keyframes shimmerSlide{0%{transform:translateX(-100%)}100%{transform:translateX(100%)}}
+    .premium-title{font-family:'Cormorant Garamond',serif;font-size:17px;font-weight:600;letter-spacing:.25em;color:#F0D080;margin-bottom:4px;}
+    .premium-sub{font-size:11px;font-weight:300;color:rgba(240,208,128,.7);letter-spacing:.08em;}
+
+    /* divider */
+    .divider{width:40px;height:1px;background:linear-gradient(90deg,transparent,var(--gold),transparent);margin:0 auto 18px;}
+
+    /* tabs */
+    .tabs{display:flex;margin-bottom:16px;border-radius:12px;overflow:hidden;border:1px solid rgba(201,169,110,.2);}
+    .tab{flex:1;padding:10px;font-size:12px;font-weight:500;font-family:'Noto Sans JP',sans-serif;background:var(--white);color:var(--text-sub);border:none;cursor:pointer;transition:all .2s;}
+    .tab.active{background:var(--text);color:var(--white);}
+    .tab-content{display:none;}
+    .tab-content.active{display:block;}
+
+    /* schedule */
+    .sched-item{display:flex;align-items:center;padding:9px 0;border-bottom:1px solid rgba(201,169,110,.1);}
+    .sched-item:last-child{border-bottom:none;}
+    .sched-at{font-size:12px;font-weight:500;color:var(--text);min-width:56px;}
+    .sched-prize{font-size:12px;font-weight:300;color:var(--text-sub);flex:1;}
+    .sched-badge{font-size:10px;padding:3px 8px;border-radius:10px;font-weight:700;}
+    .badge-done{background:rgba(201,169,110,.15);color:var(--gold-dark);}
+    .badge-next{background:var(--text);color:var(--white);}
+    .badge-locked{background:rgba(42,34,24,.06);color:var(--text-sub);}
+
+    /* coupons */
+    .coupon-item{background:var(--bg);border-radius:12px;padding:14px 16px;margin-bottom:10px;border-left:3px solid var(--gold);}
+    .coupon-item.used{border-left-color:rgba(154,142,126,.3);opacity:.55;}
+    .coupon-name{font-size:13px;font-weight:500;color:var(--text);margin-bottom:3px;}
+    .coupon-at{font-size:11px;color:var(--text-sub);}
+    .coupon-status{font-size:10px;font-weight:700;padding:3px 10px;border-radius:10px;margin-top:6px;display:inline-block;}
+    .status-avail{background:rgba(201,169,110,.15);color:var(--gold-dark);}
+    .status-used{background:rgba(42,34,24,.08);color:var(--text-sub);}
+    .empty-msg{text-align:center;padding:30px 0;font-size:13px;font-weight:300;color:var(--text-sub);}
+
+    /* staff page */
+    .btn-main{width:100%;padding:15px;background:var(--text);color:var(--white);border:none;border-radius:12px;font-size:14px;font-weight:700;font-family:'Noto Sans JP',sans-serif;letter-spacing:.04em;cursor:pointer;box-shadow:0 4px 16px rgba(42,34,24,.18);transition:all .2s;margin-bottom:10px;}
+    .btn-main:active{transform:scale(.97);}
+    .btn-stamp{width:100%;padding:16px;background:var(--text);color:var(--white);border:none;border-radius:12px;font-size:15px;font-weight:700;font-family:'Noto Sans JP',sans-serif;cursor:pointer;box-shadow:0 4px 16px rgba(42,34,24,.18);margin-bottom:12px;transition:all .2s;}
+    .btn-stamp:active{transform:scale(.97);}
+    .btn-minus{width:100%;padding:12px;background:transparent;color:var(--text-sub);border:1px solid rgba(201,169,110,.3);border-radius:12px;font-size:13px;font-family:'Noto Sans JP',sans-serif;cursor:pointer;margin-bottom:20px;}
+    .btn-sec{padding:10px 20px;background:transparent;color:var(--text-sub);border:1px solid rgba(201,169,110,.3);border-radius:12px;font-size:12px;font-family:'Noto Sans JP',sans-serif;cursor:pointer;}
+    .pw-input{width:100%;padding:14px 16px;border:1px solid rgba(201,169,110,.3);border-radius:12px;font-size:15px;background:var(--white);color:var(--text);font-family:'Noto Sans JP',sans-serif;text-align:center;letter-spacing:.2em;outline:none;}
+    .pw-input:focus{border-color:var(--gold);}
+    .pw-err{font-size:12px;color:#E05050;text-align:center;margin-top:8px;min-height:18px;}
+    .visit-big{font-family:'Cormorant Garamond',serif;font-size:52px;font-weight:400;color:var(--text);line-height:1;text-align:center;}
+    .visit-big span{font-size:18px;color:var(--text-sub);}
+    .staff-section-title{font-size:10px;font-weight:700;letter-spacing:.18em;color:var(--gold-dark);margin-bottom:12px;}
+    .staff-panel{display:none;}.staff-panel.show{display:block;}
+    .coupon-mgmt-item{background:var(--bg);border-radius:12px;padding:14px 16px;margin-bottom:10px;display:flex;align-items:center;justify-content:space-between;}
+    .coupon-mgmt-name{font-size:13px;font-weight:500;color:var(--text);}
+    .coupon-mgmt-sub{font-size:11px;color:var(--text-sub);margin-top:2px;}
+    .btn-use{padding:7px 14px;background:var(--text);color:var(--white);border:none;border-radius:10px;font-size:12px;font-weight:700;font-family:'Noto Sans JP',sans-serif;cursor:pointer;}
+
+    /* nav */
+    .bottom-nav{position:fixed;bottom:0;left:50%;transform:translateX(-50%);width:100%;max-width:430px;background:var(--white);border-top:1px solid rgba(201,169,110,.2);display:flex;z-index:50;}
+    .nav-btn{flex:1;padding:12px 0 14px;font-size:10px;font-weight:500;color:var(--text-sub);background:none;border:none;cursor:pointer;font-family:'Noto Sans JP',sans-serif;transition:color .2s;}
+    .nav-btn.active{color:var(--gold-dark);}
+    .nav-icon{font-size:20px;display:block;margin-bottom:2px;}
+
+    .footer{margin-top:30px;text-align:center;font-family:'Cormorant Garamond',serif;font-size:11px;letter-spacing:.25em;color:rgba(154,142,126,.35);}
+    .toast{position:fixed;bottom:80px;left:50%;transform:translateX(-50%) translateY(40px);background:var(--text);color:var(--white);padding:9px 22px;border-radius:20px;font-size:12px;opacity:0;transition:all .35s;pointer-events:none;z-index:300;white-space:nowrap;}
+    .toast.show{transform:translateX(-50%) translateY(0);opacity:1;}
+
+    /* confetti */
+    #confetti-canvas{position:fixed;top:0;left:0;width:100%;height:100%;pointer-events:none;z-index:200;display:none;}
+  </style>
+</head>
+<body>
+
+<div id="loading">
+  <div class="l-logo">WHITE WAX KANAYAMA</div>
+  <div class="spinner"></div>
+</div>
+
+<canvas id="confetti-canvas"></canvas>
+
+<!-- PAGE: CARD -->
+<div class="page" id="page-card">
+  <div class="logo">WHITE WAX KANAYAMA</div>
+
+  <div class="user-bar" id="user-bar">
+    <div class="user-avatar-placeholder">👤</div>
+    <div>
+      <div class="user-name" id="user-name">読み込み中...</div>
+      <div class="user-sub">会員カード</div>
+    </div>
+  </div>
+
+  <div class="card" id="main-card">
+    <div class="card-shimmer"></div>
+    <div class="ornament orn-tl" id="orn-tl">✦</div>
+    <div class="ornament orn-tr" id="orn-tr">✦</div>
+    <div class="ornament orn-bl" id="orn-bl">✦</div>
+    <div class="ornament orn-br" id="orn-br">✦</div>
+
+    <div style="text-align:center;margin-bottom:10px;">
+      <span class="rank-badge rank-normal" id="rank-badge">通常会員</span>
+    </div>
+    <div class="vc-label">— TOTAL VISITS —</div>
+    <div class="vc-num" id="vc-num">0<span>回</span></div>
+    <div class="vc-next" id="vc-next">あと3回で 500円オフGET</div>
+
+    <div class="face-wrap">
+      <div class="face-halo" id="face-halo"></div>
+      <svg viewBox="0 0 210 260" xmlns="http://www.w3.org/2000/svg">
+        <defs>
+          <radialGradient id="sg" cx="50%" cy="40%" r="56%"><stop offset="0%" stop-color="#FDE8D0"/><stop offset="100%" stop-color="#EEB98A"/></radialGradient>
+          <radialGradient id="cg" cx="50%" cy="50%" r="50%"><stop offset="0%" stop-color="#F9A8A0" stop-opacity=".32"/><stop offset="100%" stop-color="#F9A8A0" stop-opacity="0"/></radialGradient>
+          <filter id="sb"><feGaussianBlur stdDeviation="1.5"/></filter>
+        </defs>
+        <path d="M88,230 Q84,252 105,255 Q126,252 122,230" fill="url(#sg)"/>
+        <ellipse cx="105" cy="128" rx="79" ry="102" fill="url(#sg)"/>
+        <path d="M36,154 Q32,188 47,212 Q70,238 105,242 Q140,238 163,212 Q178,188 174,154" fill="url(#sg)"/>
+        <ellipse cx="26" cy="130" rx="11" ry="17" fill="#EAB892"/><ellipse cx="27" cy="130" rx="6" ry="10" fill="#F5CBB0"/>
+        <ellipse cx="184" cy="130" rx="11" ry="17" fill="#EAB892"/><ellipse cx="183" cy="130" rx="6" ry="10" fill="#F5CBB0"/>
+        <ellipse cx="58" cy="159" rx="19" ry="12" fill="url(#cg)" filter="url(#sb)"/>
+        <ellipse cx="152" cy="159" rx="19" ry="12" fill="url(#cg)" filter="url(#sb)"/>
+        <path d="M55,85 Q69,76 91,80" stroke="#5C3820" stroke-width="3" fill="none" stroke-linecap="round" opacity=".9"/>
+        <path d="M119,80 Q141,76 155,85" stroke="#5C3820" stroke-width="3" fill="none" stroke-linecap="round" opacity=".9"/>
+        <ellipse cx="73" cy="105" rx="19" ry="10.5" fill="#fff"/>
+        <ellipse cx="73" cy="105" rx="11.5" ry="10" fill="#6B4226"/>
+        <ellipse cx="73" cy="105" rx="7" ry="7" fill="#1E1008"/>
+        <ellipse cx="77" cy="101" rx="2.5" ry="2.5" fill="#fff"/>
+        <path d="M54,103 Q51,95 54,92" stroke="#1A1008" stroke-width="1.5" fill="none" stroke-linecap="round"/>
+        <path d="M63,98 Q62,91 64,89" stroke="#1A1008" stroke-width="1.5" fill="none" stroke-linecap="round"/>
+        <path d="M73,96 Q73,89 75,87" stroke="#1A1008" stroke-width="1.5" fill="none" stroke-linecap="round"/>
+        <path d="M83,98 Q86,91 87,89" stroke="#1A1008" stroke-width="1.5" fill="none" stroke-linecap="round"/>
+        <path d="M91,103 Q95,97 94,95" stroke="#1A1008" stroke-width="1.5" fill="none" stroke-linecap="round"/>
+        <ellipse cx="137" cy="105" rx="19" ry="10.5" fill="#fff"/>
+        <ellipse cx="137" cy="105" rx="11.5" ry="10" fill="#6B4226"/>
+        <ellipse cx="137" cy="105" rx="7" ry="7" fill="#1E1008"/>
+        <ellipse cx="141" cy="101" rx="2.5" ry="2.5" fill="#fff"/>
+        <path d="M116,103 Q113,95 116,92" stroke="#1A1008" stroke-width="1.5" fill="none" stroke-linecap="round"/>
+        <path d="M125,98 Q124,91 126,89" stroke="#1A1008" stroke-width="1.5" fill="none" stroke-linecap="round"/>
+        <path d="M135,96 Q135,89 137,87" stroke="#1A1008" stroke-width="1.5" fill="none" stroke-linecap="round"/>
+        <path d="M145,98 Q148,91 149,89" stroke="#1A1008" stroke-width="1.5" fill="none" stroke-linecap="round"/>
+        <path d="M154,103 Q158,97 157,95" stroke="#1A1008" stroke-width="1.5" fill="none" stroke-linecap="round"/>
+        <path d="M101,122 Q97,136 92,144 Q99,150 105,149 Q111,150 118,144 Q113,136 109,122" stroke="#C8906A" stroke-width="1" fill="none" stroke-linecap="round" opacity=".5"/>
+        <ellipse cx="96" cy="146" rx="3.5" ry="2.2" fill="#C8906A" opacity=".28"/>
+        <ellipse cx="114" cy="146" rx="3.5" ry="2.2" fill="#C8906A" opacity=".28"/>
+        <path d="M83,167 Q93,160 102,163 Q105,164 108,163 Q117,160 127,167 Q117,173 105,173 Q93,173 83,167Z" fill="#D97B72"/>
+        <path d="M93,162 Q103,157 115,162" fill="none" stroke="#EAA09A" stroke-width="1.2" stroke-linecap="round" opacity=".7"/>
+        <path d="M83,167 Q87,178 105,180 Q123,178 127,167 Q117,173 105,173 Q93,173 83,167Z" fill="#E08880"/>
+        <ellipse cx="105" cy="176" rx="11" ry="3.5" fill="#ECA9A0" opacity=".38"/>
+        <g id="w0" class="wax"><ellipse cx="63" cy="52" rx="25" ry="11" fill="rgba(228,232,255,0.92)" stroke="rgba(175,190,232,0.7)" stroke-width="0.8"/><ellipse cx="63" cy="49" rx="15" ry="6" fill="rgba(255,255,255,0.7)"/></g>
+        <g id="w1" class="wax"><ellipse cx="105" cy="46" rx="21" ry="15" fill="rgba(228,232,255,0.92)" stroke="rgba(175,190,232,0.7)" stroke-width="0.8"/><ellipse cx="105" cy="43" rx="12" ry="8" fill="rgba(255,255,255,0.7)"/></g>
+        <g id="w2" class="wax"><ellipse cx="147" cy="52" rx="25" ry="11" fill="rgba(228,232,255,0.92)" stroke="rgba(175,190,232,0.7)" stroke-width="0.8"/><ellipse cx="147" cy="49" rx="15" ry="6" fill="rgba(255,255,255,0.7)"/></g>
+        <g id="w3" class="wax" transform="rotate(-20,44,92)"><ellipse cx="44" cy="92" rx="19" ry="10" fill="rgba(228,232,255,0.92)" stroke="rgba(175,190,232,0.7)" stroke-width="0.8"/><ellipse cx="44" cy="89" rx="11" ry="5" fill="rgba(255,255,255,0.7)"/></g>
+        <g id="w4" class="wax" transform="rotate(20,166,92)"><ellipse cx="166" cy="92" rx="19" ry="10" fill="rgba(228,232,255,0.92)" stroke="rgba(175,190,232,0.7)" stroke-width="0.8"/><ellipse cx="166" cy="89" rx="11" ry="5" fill="rgba(255,255,255,0.7)"/></g>
+        <g id="w5" class="wax" transform="rotate(-10,44,134)"><ellipse cx="44" cy="134" rx="15" ry="21" fill="rgba(228,232,255,0.92)" stroke="rgba(175,190,232,0.7)" stroke-width="0.8"/><ellipse cx="44" cy="129" rx="9" ry="10" fill="rgba(255,255,255,0.7)"/></g>
+        <g id="w6" class="wax" transform="rotate(10,166,134)"><ellipse cx="166" cy="134" rx="15" ry="21" fill="rgba(228,232,255,0.92)" stroke="rgba(175,190,232,0.7)" stroke-width="0.8"/><ellipse cx="166" cy="129" rx="9" ry="10" fill="rgba(255,255,255,0.7)"/></g>
+        <g id="w7" class="wax" transform="rotate(-14,52,182)"><ellipse cx="52" cy="182" rx="23" ry="10" fill="rgba(228,232,255,0.92)" stroke="rgba(175,190,232,0.7)" stroke-width="0.8"/><ellipse cx="52" cy="179" rx="14" ry="5" fill="rgba(255,255,255,0.7)"/></g>
+        <g id="w8" class="wax" transform="rotate(14,158,182)"><ellipse cx="158" cy="182" rx="23" ry="10" fill="rgba(228,232,255,0.92)" stroke="rgba(175,190,232,0.7)" stroke-width="0.8"/><ellipse cx="158" cy="179" rx="14" ry="5" fill="rgba(255,255,255,0.7)"/></g>
+        <g id="w9" class="wax" transform="rotate(-6,85,159)"><ellipse cx="85" cy="159" rx="12" ry="7.5" fill="rgba(228,232,255,0.92)" stroke="rgba(175,190,232,0.7)" stroke-width="0.8"/><ellipse cx="85" cy="157" rx="7" ry="4" fill="rgba(255,255,255,0.7)"/></g>
+        <g id="w10" class="wax" transform="rotate(6,125,159)"><ellipse cx="125" cy="159" rx="12" ry="7.5" fill="rgba(228,232,255,0.92)" stroke="rgba(175,190,232,0.7)" stroke-width="0.8"/><ellipse cx="125" cy="157" rx="7" ry="4" fill="rgba(255,255,255,0.7)"/></g>
+        <g id="w11" class="wax"><ellipse cx="105" cy="214" rx="29" ry="13" fill="rgba(228,232,255,0.92)" stroke="rgba(175,190,232,0.7)" stroke-width="0.8"/><ellipse cx="105" cy="211" rx="17" ry="7" fill="rgba(255,255,255,0.7)"/></g>
+      </svg>
+    </div>
+
+    <div class="premium-banner" id="premium-banner">
+      <div class="premium-inner">
+        <div style="font-size:20px;margin-bottom:6px;">👑</div>
+        <div class="premium-title">PREMIUM MEMBER</div>
+        <div class="premium-sub">毎回のお会計が 10% OFF 永続適用中</div>
+      </div>
+    </div>
+
+    <div class="divider"></div>
+
+    <div class="tabs">
+      <button class="tab active" onclick="switchTab('schedule',this)">特典スケジュール</button>
+      <button class="tab" onclick="switchTab('coupons',this)">取得済み特典</button>
+    </div>
+    <div class="tab-content active" id="tab-schedule"><div id="sched-list"></div></div>
+    <div class="tab-content" id="tab-coupons"><div id="coupon-list"></div></div>
+  </div>
+  <div class="footer">WHITE WAX KANAYAMA — FACIAL WAX SALON</div>
+</div>
+
+<!-- PAGE: STAFF -->
+<div class="page" id="page-staff">
+  <div class="logo">WHITE WAX KANAYAMA</div>
+
+  <div class="card" id="staff-login-card">
+    <div style="text-align:center;">
+      <div style="font-family:'Cormorant Garamond',serif;font-size:22px;color:var(--text);margin-bottom:6px;">スタッフページ</div>
+      <div style="font-size:12px;color:var(--text-sub);margin-bottom:24px;">パスワードを入力してください</div>
+      <input class="pw-input" type="password" id="pw-input" placeholder="••••••" maxlength="10">
+      <div class="pw-err" id="pw-err"></div>
+      <div style="height:16px;"></div>
+      <button class="btn-main" onclick="checkPw()">ログイン</button>
+    </div>
+  </div>
+
+  <div class="staff-panel" id="staff-panel">
+    <div class="card">
+      <div class="staff-section-title">— お客様を選択 —</div>
+      <div id="user-search-area">
+        <input type="text" id="search-input" placeholder="名前で検索..." style="width:100%;padding:12px 16px;border:1px solid rgba(201,169,110,.3);border-radius:12px;font-size:14px;font-family:'Noto Sans JP',sans-serif;outline:none;margin-bottom:12px;background:var(--bg);">
+        <div id="user-list" style="max-height:200px;overflow-y:auto;"></div>
+      </div>
+
+      <div id="selected-user-area" style="display:none;">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px;">
+          <div style="display:flex;align-items:center;gap:10px;">
+            <img id="staff-avatar" src="" style="width:40px;height:40px;border-radius:50%;object-fit:cover;border:2px solid rgba(201,169,110,.3);">
+            <div>
+              <div id="staff-username" style="font-size:14px;font-weight:500;color:var(--text);"></div>
+              <div id="staff-rank-label" style="font-size:11px;color:var(--text-sub);"></div>
+            </div>
+          </div>
+          <button onclick="clearSelectedUser()" style="font-size:12px;color:var(--text-sub);background:none;border:none;cursor:pointer;">変更</button>
+        </div>
+
+        <div style="text-align:center;margin-bottom:20px;">
+          <div class="visit-big" id="sv-num">0<span>回</span></div>
+          <div style="font-size:12px;color:var(--text-sub);margin-top:4px;" id="sv-next"></div>
+        </div>
+
+        <button class="btn-stamp" onclick="addStamp()">＋ 来店スタンプを押す</button>
+        <button class="btn-minus" onclick="removeStamp()">− 1回取り消す</button>
+
+        <div class="divider"></div>
+        <div class="staff-section-title">— 特典の使用管理 —</div>
+        <div id="staff-coupon-list"></div>
+      </div>
+    </div>
+    <div style="text-align:center;margin-top:16px;">
+      <button class="btn-sec" onclick="staffLogout()">ログアウト</button>
+    </div>
+  </div>
+  <div class="footer">WHITE WAX KANAYAMA — FACIAL WAX SALON</div>
+</div>
+
+<div class="bottom-nav">
+  <button class="nav-btn active" id="nav-card" onclick="showPage('card')"><span class="nav-icon">💳</span>カード</button>
+  <button class="nav-btn" id="nav-staff" onclick="showPage('staff')"><span class="nav-icon">🔑</span>スタッフ</button>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+const SUPABASE_URL = 'https://uzpducnfcoewocqjmjuu.supabase.co';
+const SUPABASE_KEY = 'sb_publishable_XYxqhw2yg2KB5pkio_Jc9g_nZMdwLLX';
+const LIFF_ID = '2010374547-WiYgJnOK';
+const STAFF_PW = '104255';
+
+const MILESTONES = [
+  {at:3, prize:'500円オフ券'},
+  {at:6, prize:'1,000円オフ券'},
+  {at:9, prize:'1,500円オフ券'},
+  {at:12, prize:'2,000円オフ券'},
+  {at:16, prize:'オプション2つ無料券'},
+  {at:20, prize:'全顔ワックス1回無料（¥8,800）'},
+];
+
+let currentUser = null;
+let staffLoggedIn = false;
+let allUsers = [];
+let selectedStaffUser = null;
+let wasPremium = false;
+
+async function sbFetch(path, opts={}) {
+  const res = await fetch(SUPABASE_URL + path, {
+    ...opts,
+    headers: {
+      'apikey': SUPABASE_KEY,
+      'Authorization': 'Bearer ' + SUPABASE_KEY,
+      'Content-Type': 'application/json',
+      'Prefer': 'return=representation',
+      ...(opts.headers||{})
+    }
+  });
+  if (!res.ok) throw new Error(await res.text());
+  const text = await res.text();
+  return text ? JSON.parse(text) : null;
+}
+
+async function getOrCreateUser(lineId, displayName, pictureUrl) {
+  const rows = await sbFetch(`/rest/v1/stamps?line_user_id=eq.${lineId}&select=*`);
+  if (rows && rows.length > 0) {
+    const u = rows[0];
+    // update name/pic if changed
+    await sbFetch(`/rest/v1/stamps?line_user_id=eq.${lineId}`, {
+      method:'PATCH',
+      body: JSON.stringify({display_name: displayName, picture_url: pictureUrl})
+    });
+    return {...u, display_name: displayName, picture_url: pictureUrl};
+  } else {
+    const created = await sbFetch('/rest/v1/stamps', {
+      method:'POST',
+      body: JSON.stringify({line_user_id: lineId, count:0, display_name: displayName, picture_url: pictureUrl, used_rewards:[]})
+    });
+    return created[0];
+  }
+}
+
+async function saveUser(user) {
+  await sbFetch(`/rest/v1/stamps?line_user_id=eq.${user.line_user_id}`, {
+    method:'PATCH',
+    body: JSON.stringify({count: user.count, used_rewards: user.used_rewards})
+  });
+}
+
+async function init() {
+  try {
+    await liff.init({liffId: LIFF_ID});
+    if (!liff.isLoggedIn()) { liff.login(); return; }
+    const profile = await liff.getProfile();
+    currentUser = await getOrCreateUser(profile.userId, profile.displayName, profile.pictureUrl);
+    // show user info
+    document.getElementById('user-name').textContent = profile.displayName;
+    const bar = document.getElementById('user-bar');
+    if (profile.pictureUrl) {
+      bar.querySelector('.user-avatar-placeholder').outerHTML = `<img class="user-avatar" src="${profile.pictureUrl}">`;
+    }
+    refreshCard();
+    document.getElementById('loading').style.display = 'none';
+    document.getElementById('page-card').classList.add('active');
+  } catch(e) {
+    console.error(e);
+    // fallback for testing outside LINE
+    currentUser = {line_user_id:'test', count:0, display_name:'テストユーザー', picture_url:'', used_rewards:[]};
+    document.getElementById('user-name').textContent = 'テストユーザー';
+    refreshCard();
+    document.getElementById('loading').style.display = 'none';
+    document.getElementById('page-card').classList.add('active');
+  }
+}
+
+function nextText(v) {
+  if (v >= 21) return 'プレミアム会員 — 毎回10%オフ永続中';
+  for (const m of MILESTONES) if (v < m.at) return 'あと'+(m.at-v)+'回で '+m.prize.replace('券','')+'GET';
+  return v >= 20 ? 'プレミアム会員まであと1回！' : '';
+}
+
+function getRank(v) { return v>=21?'premium':v>=12?'gold':'normal'; }
+
+function updateWax(v) {
+  for (let i=0;i<12;i++) {
+    const el=document.getElementById('w'+i);
+    if(el){if(i<Math.min(v,12))el.classList.add('off');else el.classList.remove('off');}
+  }
+}
+
+function updateRankBadge(el,v) {
+  const r=getRank(v); el.className='rank-badge';
+  if(r==='premium'){el.textContent='✦ PREMIUM MEMBER';el.classList.add('rank-gold');}
+  else if(r==='gold'){el.textContent='✦ GOLD MEMBER';el.classList.add('rank-gold');}
+  else{el.textContent='通常会員';el.classList.add('rank-normal');}
+}
+
+function triggerPremium() {
+  document.getElementById('main-card').classList.add('premium-card');
+  document.getElementById('face-halo').classList.add('show');
+  ['orn-tl','orn-tr','orn-bl','orn-br'].forEach(id=>document.getElementById(id).classList.add('show'));
+  document.getElementById('premium-banner').classList.add('show');
+  launchConfetti();
+}
+
+function removePremium() {
+  document.getElementById('main-card').classList.remove('premium-card');
+  document.getElementById('face-halo').classList.remove('show');
+  ['orn-tl','orn-tr','orn-bl','orn-br'].forEach(id=>document.getElementById(id).classList.remove('show'));
+  document.getElementById('premium-banner').classList.remove('show');
+}
+
+function launchConfetti() {
+  const canvas=document.getElementById('confetti-canvas');
+  canvas.style.display='block';
+  canvas.width=window.innerWidth;canvas.height=window.innerHeight;
+  const ctx=canvas.getContext('2d');
+  const colors=['#C9A96E','#F0D080','#FFF8E1','#A8854A','#E8C87A','#fff'];
+  const pieces=[];
+  for(let i=0;i<120;i++){pieces.push({x:Math.random()*canvas.width,y:-20-Math.random()*100,w:6+Math.random()*8,h:4+Math.random()*4,color:colors[Math.floor(Math.random()*colors.length)],rot:Math.random()*360,rotSpeed:(Math.random()-.5)*8,vx:(Math.random()-.5)*3,vy:2+Math.random()*3,opacity:1});}
+  let frame=0;
+  function draw(){
+    ctx.clearRect(0,0,canvas.width,canvas.height);
+    let alive=false;
+    pieces.forEach(p=>{p.x+=p.vx;p.y+=p.vy;p.rot+=p.rotSpeed;if(frame>80)p.opacity=Math.max(0,p.opacity-.015);if(p.y<canvas.height+20&&p.opacity>0)alive=true;ctx.save();ctx.globalAlpha=p.opacity;ctx.translate(p.x,p.y);ctx.rotate(p.rot*Math.PI/180);ctx.fillStyle=p.color;ctx.fillRect(-p.w/2,-p.h/2,p.w,p.h);ctx.restore();});
+    frame++;if(alive)requestAnimationFrame(draw);else canvas.style.display='none';
+  }
+  draw();
+}
+
+function renderSchedule(v) {
+  const el=document.getElementById('sched-list');
+  let html='';
+  MILESTONES.forEach(m=>{
+    let bc='',bt='';
+    if(v>=m.at){bc='badge-done';bt='取得済';}
+    else{
+      let isNext=true;
+      for(const x of MILESTONES){if(x.at<m.at&&v<x.at){isNext=false;break;}}
+      if(isNext){bc='badge-next';bt='次の目標';}
+    }
+    html+=`<div class="sched-item"><span class="sched-at">${m.at}回</span><span class="sched-prize">${m.prize}</span>${bt?`<span class="sched-badge ${bc}">${bt}</span>`:''}</div>`;
+  });
+  const pc=v>=21?'badge-done':v>=20?'badge-next':'';
+  const pt=v>=21?'適用中':v===20?'次の目標':'';
+  html+=`<div class="sched-item"><span class="sched-at">21回〜</span><span class="sched-prize">毎回10%オフ永続</span>${pt?`<span class="sched-badge ${pc}">${pt}</span>`:''}</div>`;
+  el.innerHTML=html;
+}
+
+function renderCoupons(user) {
+  const el=document.getElementById('coupon-list');
+  const rewards=user.used_rewards||[];
+  // build coupon list from milestones
+  const earned=MILESTONES.filter(m=>user.count>=m.at);
+  if(!earned.length){el.innerHTML='<div class="empty-msg">まだ取得した特典はありません</div>';return;}
+  el.innerHTML=earned.map((m,i)=>{
+    const used=rewards.includes(m.at);
+    return `<div class="coupon-item ${used?'used':''}">
+      <div class="coupon-name">${m.prize}</div>
+      <div class="coupon-at">${m.at}回来店時に取得</div>
+      <span class="coupon-status ${used?'status-used':'status-avail'}">${used?'使用済み':'未使用'}</span>
+    </div>`;
+  }).join('');
+}
+
+function refreshCard() {
+  if(!currentUser) return;
+  const v=currentUser.count||0;
+  document.getElementById('vc-num').innerHTML=v+'<span>回</span>';
+  document.getElementById('vc-next').textContent=nextText(v);
+  updateRankBadge(document.getElementById('rank-badge'),v);
+  updateWax(v);
+  const isPremium=v>=21;
+  if(isPremium&&!wasPremium) triggerPremium();
+  else if(!isPremium&&wasPremium) removePremium();
+  else if(isPremium) document.getElementById('main-card').classList.add('premium-card');
+  wasPremium=isPremium;
+  renderSchedule(v);
+  renderCoupons(currentUser);
+}
+
+// Staff
+function checkPw() {
+  const v=document.getElementById('pw-input').value;
+  if(v===STAFF_PW){
+    staffLoggedIn=true;
+    document.getElementById('staff-login-card').style.display='none';
+    document.getElementById('staff-panel').classList.add('show');
+    loadAllUsers();
+  } else {
+    document.getElementById('pw-err').textContent='パスワードが違います';
+    document.getElementById('pw-input').value='';
+  }
+}
+
+async function loadAllUsers() {
+  allUsers = await sbFetch('/rest/v1/stamps?select=*&order=count.desc') || [];
+  renderUserList('');
+}
+
+function renderUserList(query) {
+  const el=document.getElementById('user-list');
+  const filtered=allUsers.filter(u=>(u.display_name||'').includes(query));
+  if(!filtered.length){el.innerHTML='<div class="empty-msg">お客様が見つかりません</div>';return;}
+  el.innerHTML=filtered.map(u=>`
+    <div onclick="selectUser('${u.line_user_id}')" style="display:flex;align-items:center;gap:10px;padding:10px;border-radius:12px;cursor:pointer;background:var(--bg);margin-bottom:8px;">
+      ${u.picture_url?`<img src="${u.picture_url}" style="width:36px;height:36px;border-radius:50%;object-fit:cover;">`:'<div style="width:36px;height:36px;border-radius:50%;background:rgba(201,169,110,.15);display:flex;align-items:center;justify-content:center;">👤</div>'}
+      <div>
+        <div style="font-size:13px;font-weight:500;color:var(--text);">${u.display_name||'名前なし'}</div>
+        <div style="font-size:11px;color:var(--text-sub);">${u.count||0}回来店</div>
+      </div>
+    </div>
+  `).join('');
+}
+
+function selectUser(lineId) {
+  selectedStaffUser = allUsers.find(u=>u.line_user_id===lineId);
+  if(!selectedStaffUser) return;
+  document.getElementById('user-search-area').style.display='none';
+  document.getElementById('selected-user-area').style.display='block';
+  document.getElementById('staff-avatar').src=selectedStaffUser.picture_url||'';
+  document.getElementById('staff-username').textContent=selectedStaffUser.display_name||'名前なし';
+  refreshStaffPanel();
+}
+
+function clearSelectedUser() {
+  selectedStaffUser=null;
+  document.getElementById('user-search-area').style.display='block';
+  document.getElementById('selected-user-area').style.display='none';
+}
+
+function refreshStaffPanel() {
+  if(!selectedStaffUser) return;
+  const v=selectedStaffUser.count||0;
+  document.getElementById('sv-num').innerHTML=v+'<span>回</span>';
+  document.getElementById('sv-next').textContent=nextText(v);
+  document.getElementById('staff-rank-label').textContent=getRank(v)==='premium'?'PREMIUM MEMBER':getRank(v)==='gold'?'GOLD MEMBER':'通常会員';
+  renderStaffCoupons();
+}
+
+function renderStaffCoupons() {
+  const el=document.getElementById('staff-coupon-list');
+  const v=selectedStaffUser.count||0;
+  const used=selectedStaffUser.used_rewards||[];
+  const avail=MILESTONES.filter(m=>v>=m.at&&!used.includes(m.at));
+  if(!avail.length){el.innerHTML='<div class="empty-msg">使用可能な特典はありません</div>';return;}
+  el.innerHTML=avail.map(m=>`
+    <div class="coupon-mgmt-item">
+      <div><div class="coupon-mgmt-name">${m.prize}</div><div class="coupon-mgmt-sub">${m.at}回来店時取得</div></div>
+      <button class="btn-use" onclick="useCoupon(${m.at})">使用済みにする</button>
+    </div>
+  `).join('');
+}
+
+async function addStamp() {
+  if(!selectedStaffUser) return;
+  selectedStaffUser.count=(selectedStaffUser.count||0)+1;
+  const v=selectedStaffUser.count;
+  const m=MILESTONES.find(x=>x.at===v);
+  if(m) showToast('🎉 '+m.prize+' を取得！');
+  if(v===12) setTimeout(()=>showToast('✦ ゴールド会員に昇格！'),1200);
+  if(v===21) setTimeout(()=>showToast('👑 プレミアム会員へ！'),600);
+  await saveUser(selectedStaffUser);
+  const idx=allUsers.findIndex(u=>u.line_user_id===selectedStaffUser.line_user_id);
+  if(idx>=0) allUsers[idx]=selectedStaffUser;
+  refreshStaffPanel();
+  // also refresh card if same user
+  if(currentUser&&currentUser.line_user_id===selectedStaffUser.line_user_id){
+    currentUser=selectedStaffUser;refreshCard();
+  }
+}
+
+async function removeStamp() {
+  if(!selectedStaffUser||selectedStaffUser.count<=0) return;
+  selectedStaffUser.count--;
+  await saveUser(selectedStaffUser);
+  const idx=allUsers.findIndex(u=>u.line_user_id===selectedStaffUser.line_user_id);
+  if(idx>=0) allUsers[idx]=selectedStaffUser;
+  refreshStaffPanel();
+  if(currentUser&&currentUser.line_user_id===selectedStaffUser.line_user_id){currentUser=selectedStaffUser;refreshCard();}
+}
+
+async function useCoupon(at) {
+  if(!selectedStaffUser) return;
+  const used=selectedStaffUser.used_rewards||[];
+  if(!used.includes(at)){
+    used.push(at);
+    selectedStaffUser.used_rewards=used;
+    await saveUser(selectedStaffUser);
+    const m=MILESTONES.find(x=>x.at===at);
+    showToast('✓ '+(m?m.prize:'特典')+' を使用済みにしました');
+    const idx=allUsers.findIndex(u=>u.line_user_id===selectedStaffUser.line_user_id);
+    if(idx>=0) allUsers[idx]=selectedStaffUser;
+    renderStaffCoupons();
+    if(currentUser&&currentUser.line_user_id===selectedStaffUser.line_user_id){currentUser=selectedStaffUser;renderCoupons(currentUser);}
+  }
+}
+
+function staffLogout() {
+  staffLoggedIn=false;
+  selectedStaffUser=null;
+  document.getElementById('staff-panel').classList.remove('show');
+  document.getElementById('staff-login-card').style.display='block';
+  document.getElementById('pw-input').value='';
+  document.getElementById('pw-err').textContent='';
+  clearSelectedUser();
+}
+
+document.getElementById('search-input').addEventListener('input',e=>renderUserList(e.target.value));
+document.getElementById('pw-input').addEventListener('keydown',e=>{if(e.key==='Enter')checkPw();});
+
+function showPage(n) {
+  document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
+  document.querySelectorAll('.nav-btn').forEach(b=>b.classList.remove('active'));
+  document.getElementById('page-'+n).classList.add('active');
+  document.getElementById('nav-'+n).classList.add('active');
+}
+
+function switchTab(n,btn) {
+  document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
+  document.querySelectorAll('.tab-content').forEach(t=>t.classList.remove('active'));
+  btn.classList.add('active');
+  document.getElementById('tab-'+n).classList.add('active');
+}
+
+function showToast(msg) {
+  const t=document.getElementById('toast');
+  t.textContent=msg;t.classList.add('show');
+  setTimeout(()=>t.classList.remove('show'),2800);
+}
+
+init();
+</script>
+</body>
+</html>
